@@ -1,98 +1,161 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import React from 'react';
+import { ScrollView, StyleProp, ViewStyle, RefreshControl } from 'react-native';
+import { Box, Text, Button } from '@/components';
+import { BookCard } from '@/components/Card';
+import { searchAllSources, SearchFilters } from '@/api';
+import { useQuery } from '@tanstack/react-query';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { LucideIcon } from 'lucide-react-native';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const colorScheme = useColorScheme();
+  
+  const { data: featuredBooks, isLoading } = useQuery({
+    queryKey: ['featured-books'],
+    queryFn: () => searchAllSources({ limit: 10, sortBy: 'popular' }),
+  });
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const { data: continueReading } = useQuery({
+    queryKey: ['continue-reading'],
+    queryFn: () => searchAllSources({ limit: 5 }),
+  });
+
+  const genres = ['Fiction', 'Business', 'Self-Help', 'Science', 'History', 'Biography'];
+
+  if (isLoading) {
+    return (
+      <Box flex={1} justifyContent="center" alignItems="center">
+        <Text variant="bodyLG" color="gray">Loading...</Text>
+      </Box>
+    );
+  }
+
+  return (
+    <ScrollView
+      contentContainerStyle={{ paddingBottom: 100 }}
+      refreshControl={
+        <RefreshControl refreshing={false} onRefresh={() => {}} />
+      }
+    >
+      <Box px={16} py={24} gap={8}>
+        <Box flexDirection="row" justifyContent="space-between" alignItems="center">
+          <Box>
+            <Text variant="headingXL" style={{ fontWeight: '800' }}>
+              Good morning
+            </Text>
+            <Text variant="bodyMD" color="gray">
+              What are you reading today?
+            </Text>
+          </Box>
+          <Box p={2} bg="primary-100" borderRadius={12}>
+            <LucideIcon name="bell" size={24} color="primary-600" />
+          </Box>
+        </Box>
+      </Box>
+
+      {continueReading?.books.length && (
+        <Box px={16} py={8} gap={12}>
+          <Box flexDirection="row" justifyContent="space-between" alignItems="center">
+            <Text variant="headingLG" style={{ fontWeight: '700' }}>
+              Continue Reading
+            </Text>
+            <Text variant="bodySM" color="primary-600" style={{ fontWeight: '600' }}>
+              See all
+            </Text>
+          </Box>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 16 }}>
+            {continueReading.books.slice(0, 5).map((book) => (
+              <BookCard key={book.id} book={book} variant="vertical" />
+            ))}
+          </ScrollView>
+        </Box>
+      )}
+
+      <Box px={16} py={8} gap={12}>
+        <Box flexDirection="row" justifyContent="space-between" alignItems="center">
+          <Text variant="headingLG" style={{ fontWeight: '700' }}>
+            Explore Genres
+          </Text>
+          <Text variant="bodySM" color="primary-600" style={{ fontWeight: '600' }}>
+            View all
+          </Text>
+        </Box>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 16 }}>
+          {genres.map((genre) => (
+            <Box
+              key={genre}
+              onPress={() => {}}
+              bg={colorScheme === 'dark' ? '#252542' : '#fff'}
+              borderWidth={1}
+              borderColor={colorScheme === 'dark' ? '#3f3f46' : '#e5e7eb'}
+              borderRadius={16}
+              px={20}
+              py={16}
+              gap={8}
+              minWidth={140}
+              alignItems="center"
+            >
+              <Box p={3} bg="primary-100" borderRadius={12}>
+                <LucideIcon name="book-open" size={24} color="primary-600" />
+              </Box>
+              <Text variant="bodySM" style={{ fontWeight: '600', textAlign: 'center' }}>
+                {genre}
+              </Text>
+            </Box>
+          ))}
+        </ScrollView>
+      </Box>
+
+      <Box px={16} py={8} gap={12}>
+        <Box flexDirection="row" justifyContent="space-between" alignItems="center">
+          <Text variant="headingLG" style={{ fontWeight: '700' }}>
+            Trending Now
+          </Text>
+          <Text variant="bodySM" color="primary-600" style={{ fontWeight: '600' }}>
+            See all
+          </Text>
+        </Box>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 16 }}>
+          {featuredBooks?.books.slice(0, 8).map((book) => (
+            <BookCard key={book.id} book={book} variant="vertical" />
+          ))}
+        </ScrollView>
+      </Box>
+
+      <Box px={16} py={8} gap={12}>
+        <Box flexDirection="row" justifyContent="space-between" alignItems="center">
+          <Text variant="headingLG" style={{ fontWeight: '700' }}>
+            Free Summaries
+          </Text>
+          <Text variant="bodySM" color="primary-600" style={{ fontWeight: '600' }}>
+            See all
+          </Text>
+        </Box>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingHorizontal: 16 }}>
+          {featuredBooks?.books.filter(b => b.isFree).slice(0, 5).map((book) => (
+            <BookCard key={book.id} book={book} variant="vertical" />
+          ))}
+        </ScrollView>
+      </Box>
+
+      <Box px={16} py={24} gap={16} bg="primary-50" borderRadius={16} mx={16} style={{ border: '1px solid', borderColor: 'primary-200' }}>
+        <Box flexDirection="row" alignItems="center" gap={12}>
+          <Box p={3} bg="primary-100" borderRadius={12}>
+            <LucideIcon name="star" size={28} color="primary-600" />
+          </Box>
+          <Box flex={1}>
+            <Text variant="headingMD" style={{ fontWeight: '700' }}>
+              Unlock Unlimited Reading
+            </Text>
+            <Text variant="bodySM" color="gray">
+              Get unlimited summaries, offline access, audio summaries & more
+            </Text>
+          </Box>
+          <Button variant="primary" size="sm">
+            Go Premium
+          </Button>
+        </Box>
+      </Box>
+    </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
