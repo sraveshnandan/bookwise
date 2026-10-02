@@ -1,12 +1,15 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Dimensions, Platform, Alert } from 'react-native';
-import { Box, Text, Button, Input } from '@/components';
+import { Box, Text, Button } from '@/components';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useReaderStore } from '@/store/readerStore';
 import { useLibraryStore } from '@/store/libraryStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LucideIcon } from 'lucide-react-native';
 import { formatDuration } from '@/utils/formatters';
+import { EpubReader, PdfReader } from '@/components/reader';
+import * as FileSystem from 'expo-file-system';
+import { STORAGE_PATHS, getBookPath } from '@/utils/storage';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -23,16 +26,14 @@ export default function ReaderScreen() {
   const [isControlsVisible, setIsControlsVisible] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [showTOC, setShowTOC] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [localProgress, setLocalProgress] = useState(0);
   const [currentChapter, setCurrentChapter] = useState(0);
   const [totalChapters, setTotalChapters] = useState(0);
-  const [fontSize, setFontSize] = useState(settings.fontSize);
-  const [theme, setTheme] = useState(settings.theme);
-  const [margin, setMargin] = useState(settings.margin);
-  const [lineHeight, setLineHeight] = useState(settings.lineHeight);
-  const [fontFamily, setFontFamily] = useState(settings.fontFamily);
+  const [bookPath, setBookPath] = useState<string | null>(null);
+  const [isLoadingBook, setIsLoadingBook] = useState(true);
+  const [downloadProgress, setDownloadProgress] = useState(0);
 
-  const hideControlsTimeout = useRef<NodeJS.Timeout>();
+  const hideControlsTimeout = React.useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     setCurrentBook(bookId, bookFormat);
@@ -45,10 +46,83 @@ export default function ReaderScreen() {
   }, [bookId]);
 
   const loadBook = async () => {
-    setTotalChapters(15);
-    setCurrentChapter(0);
-    setProgress(0);
+    setIsLoadingBook(true);
+    try {
+      const localPath = getBookPath(bookId, bookFormat);
+      const fileInfo = await FileSystem.getInfoAsync(localPath);
+      
+      if (fileInfo.exists) {
+        setBookPath(`file://${localPath}`);
+        setIsLoadingBook(false);
+      } else {
+        // Download the book
+        await downloadBook(bookId, bookFormat);
+      }
+    } catch (error) {
+      console.error('Error loading book:', error);
+      Alert.alert('Error', 'Failed to load book');
+      setIsLoadingBook(false);
+    }
   };
+
+  const downloadBook = async (bookId: string, format: 'epub' | 'pdf') => {
+    // In a real app, this would fetch from your backend
+    // For now, we'll use a placeholder
+    const downloadUrl = `https://example.com/books/${bookId}.${format}`;
+    const localPath = getBookPath(bookId, format);
+    
+    try {
+      const downloadResumable = FileSystem.createDownloadResumable(
+        downloadUrl,
+        localPath,
+        {},
+        (downloadProgress) => {
+          const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+          setDownloadProgress(progress);
+        }
+      );
+      
+      const result = await downloadResumable.downloadAsync();
+      if (result) {
+        setBookPath(`file://${result.uri}`);
+      }
+    } catch (error) {
+      console.error('Download failed:', error);
+      Alert.alert('Download Failed', 'Could not download the book for offline reading');
+    } finally {
+      setIsLoadingBook(false);
+    }
+  };
+
+  const handleProgressChange = useCallback((progress: number, chapterIndex: number, chapterProgress: number) => {
+    setLocalProgress(progress);
+    setCurrentChapter(chapterIndex);
+    updateProgress(bookId, {
+      chapterIndex,
+      chapterProgress,
+      timestamp: Date.now(),
+    });
+    updateReadingProgress(bookId, progress);
+  }, [bookId, updateProgress, updateReadingProgress]);
+
+  const handleChapterChange = useCallback((chapterIndex: number) => {
+    setCurrentChapter(chapterIndex);
+  }, []);
+
+  const handlePageChange = useCallback((pageNumber: number) => {
+    // For PDF, progress is page-based
+    if (totalChapters > 0) {
+      const progress = pageNumber / totalChapters;
+      setLocalProgress(progress);
+      updateProgress(bookId, {
+        chapterIndex: pageNumber - 1,
+        chapterProgress: 0,
+        pageNumber,
+        timestamp: Date.now(),
+      });
+      updateReadingProgress(bookId, progress);
+    }
+  }, [bookId, totalChapters, updateProgress, updateReadingProgress]);
 
   const toggleControls = () => {
     setIsControlsVisible(!isControlsVisible);
@@ -57,51 +131,16 @@ export default function ReaderScreen() {
     }
   };
 
-  const handleTap = (locationX: number) => {
-    const leftZone = SCREEN_WIDTH * 0.3;
-    const rightZone = SCREEN_WIDTH * 0.7;
-
-    if (locationX < leftZone) {
-      goToPreviousChapter();
-    } else if (locationX > rightZone) {
-      goToNextChapter();
-    } else {
-      toggleControls();
-    }
-  };
-
   const goToPreviousChapter = () => {
-    if (currentChapter > 0) {
-      setCurrentChapter(prev => prev - 1);
-      setProgress(prev => Math.max(0, prev - 100 / totalChapters));
-    }
+    // Handled by the reader components
   };
 
   const goToNextChapter = () => {
-    if (currentChapter < totalChapters - 1) {
-      setCurrentChapter(prev => prev + 1);
-      setProgress(prev => Math.min(100, prev + 100 / totalChapters));
-    }
-  };
-
-  const handleProgressChange = (value: number) => {
-    const chapterIndex = Math.floor((value / 100) * totalChapters);
-    setProgress(value);
-    setCurrentChapter(Math.min(chapterIndex, totalChapters - 1));
-  };
-
-  const handleProgressComplete = (value: number) => {
-    const chapterIndex = Math.floor((value / 100) * totalChapters);
-    updateProgress(bookId, {
-      chapterIndex,
-      chapterProgress: (value / 100) * 100 - chapterIndex * (100 / totalChapters),
-      timestamp: Date.now(),
-    });
-    updateReadingProgress(bookId, value);
+    // Handled by the reader components
   };
 
   const getBackgroundColor = () => {
-    switch (theme) {
+    switch (settings.theme) {
       case 'dark': return '#0f0f1a';
       case 'sepia': return '#f4ecd8';
       case 'auto': return colorScheme === 'dark' ? '#0f0f1a' : '#ffffff';
@@ -110,7 +149,7 @@ export default function ReaderScreen() {
   };
 
   const getTextColor = () => {
-    switch (theme) {
+    switch (settings.theme) {
       case 'dark': return '#fafafa';
       case 'sepia': return '#433422';
       case 'auto': return colorScheme === 'dark' ? '#fafafa' : '#111827';
@@ -118,125 +157,117 @@ export default function ReaderScreen() {
     }
   };
 
-  const fontFamilies = {
-    sans: 'Inter',
-    serif: 'Merriweather',
-    mono: 'JetBrains Mono',
-  };
+  if (isLoadingBook) {
+    return (
+      <View style={styles.loadingContainer}>
+        <LucideIcon name="loader" size={48} color="primary-600" className="animate-spin" />
+        <Text variant="bodyMD" color="gray" style={{ marginTop: 12 }}>
+          {downloadProgress > 0 ? `Downloading... ${Math.round(downloadProgress * 100)}%` : 'Loading book...'}
+        </Text>
+      </View>
+    );
+  }
 
-  const chapterContent = `
-    Chapter ${currentChapter + 1}
-
-    ${'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(20)}
-
-    Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-
-    ${'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. '.repeat(10)}
-
-    Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-  `;
+  if (!bookPath) {
+    return (
+      <View style={styles.errorContainer}>
+        <LucideIcon name="alert-triangle" size={48} color="red" />
+        <Text variant="headingMD" color="red" style={{ marginTop: 16 }}>Unable to Load Book</Text>
+        <Text variant="bodyMD" color="gray" style={{ marginTop: 8, textAlign: 'center' }}>
+          The book file could not be found or downloaded.
+        </Text>
+        <Button variant="primary" onPress={() => router.back()} style={{ marginTop: 24 }}>
+          Go Back
+        </Button>
+      </View>
+    );
+  }
 
   return (
-    <View style={styles.container} onTouchStart={({ locationX }) => handleTap(locationX)}>
-      <View
-        style={[
-          styles.readerContainer,
-          { backgroundColor: getBackgroundColor() },
-        ]}
-      >
-        {bookFormat === 'epub' ? (
-          <View style={[styles.epubContent, { paddingHorizontal: margin, paddingVertical: margin }]}>
-            <Text
-              style={[
-                styles.epubText,
-                {
-                  fontSize,
-                  lineHeight: fontSize * lineHeight,
-                  fontFamily: fontFamilies[fontFamily],
-                  color: getTextColor(),
-                },
-              ]}
-            >
-              {chapterContent}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.pdfPlaceholder}>
-            <LucideIcon name="file-text" size={64} color="gray" />
-            <Text variant="headingMD" color="gray" style={{ marginTop: 16 }}>
-              PDF Reader
-            </Text>
-            <Text variant="bodyMD" color="gray" style={{ marginTop: 8, textAlign: 'center' }}>
-              PDF rendering with react-native-pdf
-            </Text>
-          </View>
-        )}
+    <View style={[styles.container, { backgroundColor: getBackgroundColor() }]} onTouchStart={toggleControls}>
+      {bookFormat === 'epub' ? (
+        <EpubReader
+          bookId={bookId}
+          bookPath={bookPath}
+          onProgressChange={handleProgressChange}
+          onChapterChange={handleChapterChange}
+        />
+      ) : (
+        <PdfReader
+          bookId={bookId}
+          bookPath={bookPath}
+          onProgressChange={handlePageChange}
+          onPageChange={handlePageChange}
+        />
+      )}
 
-        {isControlsVisible && (
-          <View style={styles.topBar}>
-            <Box px={16} py={12} flexDirection="row" alignItems="center" justifyContent="space-between">
-              <LucideIcon name="chevron-left" size={24} onPress={() => router.back()} />
-              <Box flex={1} alignItems="center" gap={4}>
-                <Text variant="bodySM" style={{ fontWeight: '600', color: getTextColor() }}>
-                  {bookId}
-                </Text>
-                <Text variant="caption" color="gray">
-                  Chapter {currentChapter + 1} of {totalChapters}
-                </Text>
-              </Box>
-              <Box flexDirection="row" gap={8}>
-                <LucideIcon name="list" size={24} color={getTextColor()} onPress={() => setShowTOC(true)} />
-                <LucideIcon name="settings" size={24} color={getTextColor()} onPress={() => setShowSettings(true)} />
-              </Box>
-            </Box>
-          </View>
-        )}
-
-        {isControlsVisible && (
-          <View style={styles.bottomBar}>
-            <Box px={16} py={12} gap={12}>
-              <Box flexDirection="row" alignItems="center" gap={12}>
-                <LucideIcon name="skip-back" size={24} color={getTextColor()} onPress={goToPreviousChapter} />
-                <Box flex={1}>
-                  <View style={styles.progressTrack}>
-                    <View
-                      style={[
-                        styles.progressFill,
-                        { width: `${progress}%`, backgroundColor: 'primary-500' },
-                      ]}
-                    />
-                    <View
-                      style={[
-                        styles.progressThumb,
-                        { left: `${progress}%`, backgroundColor: getBackgroundColor() },
-                      ]}
-                    />
-                  </View>
-                </Box>
-                <LucideIcon name="skip-forward" size={24} color={getTextColor()} onPress={goToNextChapter} />
-              </Box>
-              <Text variant="caption" color="gray" style={{ textAlign: 'center' }}>
-                {Math.round(progress)}% • Ch. {currentChapter + 1}
+      {isControlsVisible && (
+        <View style={styles.topBar}>
+          <Box px={16} py={12} flexDirection="row" alignItems="center" justifyContent="space-between">
+            <LucideIcon name="chevron-left" size={24} onPress={() => router.back()} color={getTextColor()} />
+            <Box flex={1} alignItems="center" gap={4}>
+              <Text variant="bodySM" style={{ fontWeight: '600', color: getTextColor() }}>
+                {bookId}
+              </Text>
+              <Text variant="caption" color="gray">
+                {bookFormat === 'epub' 
+                  ? `Chapter ${currentChapter + 1} of ${totalChapters}`
+                  : `Page ${Math.round(localProgress * totalChapters) || 1} of ${totalChapters}`}
               </Text>
             </Box>
-          </View>
-        )}
-      </View>
+            <Box flexDirection="row" gap={8}>
+              <LucideIcon name="list" size={24} color={getTextColor()} onPress={() => setShowTOC(true)} />
+              <LucideIcon name="settings" size={24} color={getTextColor()} onPress={() => setShowSettings(true)} />
+            </Box>
+          </Box>
+        </View>
+      )}
+
+      {isControlsVisible && (
+        <View style={styles.bottomBar}>
+          <Box px={16} py={12} gap={12}>
+            <Box flexDirection="row" alignItems="center" gap={12}>
+              <LucideIcon name="skip-back" size={24} color={getTextColor()} onPress={goToPreviousChapter} />
+              <Box flex={1}>
+                <View style={styles.progressTrack}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      { width: `${localProgress * 100}%`, backgroundColor: 'primary-500' },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      styles.progressThumb,
+                      { left: `${localProgress * 100}%`, backgroundColor: getBackgroundColor() },
+                    ]}
+                  />
+                </View>
+              </Box>
+              <LucideIcon name="skip-forward" size={24} color={getTextColor()} onPress={goToNextChapter} />
+            </Box>
+            <Text variant="caption" color="gray" style={{ textAlign: 'center' }}>
+              {Math.round(localProgress * 100)}% 
+              {bookFormat === 'epub' ? `• Ch. ${currentChapter + 1}` : `• Pg ${Math.round(localProgress * totalChapters) || 1}`}
+            </Text>
+          </Box>
+        </View>
+      )}
 
       {showSettings && (
         <ReaderSettingsModal
           visible={showSettings}
           onClose={() => setShowSettings(false)}
-          fontSize={fontSize}
-          onFontSizeChange={setFontSize}
-          theme={theme}
-          onThemeChange={setTheme}
-          margin={margin}
-          onMarginChange={setMargin}
-          lineHeight={lineHeight}
-          onLineHeightChange={setLineHeight}
-          fontFamily={fontFamily}
-          onFontFamilyChange={setFontFamily}
+          fontSize={settings.fontSize}
+          onFontSizeChange={(v) => updateReadingProgress(bookId, 0)} // placeholder
+          theme={settings.theme}
+          onThemeChange={(v) => {}}
+          margin={settings.margin}
+          onMarginChange={(v) => {}}
+          lineHeight={settings.lineHeight}
+          onLineHeightChange={(v) => {}}
+          fontFamily={settings.fontFamily}
+          onFontFamilyChange={(v) => {}}
           colorScheme={colorScheme}
         />
       )}
@@ -413,22 +444,19 @@ function TOCModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
-  readerContainer: {
+  loadingContainer: {
     flex: 1,
-  },
-  epubContent: {
-    flex: 1,
-  },
-  epubText: {
-    textAlign: 'justify',
-  },
-  pdfPlaceholder: {
-    flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#fff',
   },
   topBar: {
     position: 'absolute',
@@ -456,6 +484,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
+    backgroundColor: '#0ea5e9',
     borderRadius: 2,
   },
   progressThumb: {
@@ -464,8 +493,9 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
+    backgroundColor: '#fff',
     borderWidth: 2,
-    borderColor: 'primary-500',
+    borderColor: '#0ea5e9',
     transform: [{ translateX: -8 }],
   },
   modalOverlay: {

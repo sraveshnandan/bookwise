@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Dimensions, Platform, Alert } from 'react-native';
 import { Box, Text, Button } from '@/components';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -7,15 +7,16 @@ import { useLibraryStore } from '@/store/libraryStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LucideIcon } from 'lucide-react-native';
 import { formatDuration } from '@/utils/formatters';
-import { Audio } from 'expo-av';
+import { useAudioPlayer, AudioService, AudioChapter } from '@/services/audioService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const mockChapters = Array.from({ length: 12 }, (_, i) => ({
+const mockChapters: AudioChapter[] = Array.from({ length: 12 }, (_, i) => ({
   id: `ch-${i}`,
   title: `Chapter ${i + 1}`,
   duration: 1800 + i * 120,
   url: `https://example.com/audio/chapter-${i + 1}.mp3`,
+  artwork: `https://example.com/cover-${i}.jpg`,
 }));
 
 export default function AudioPlayerScreen() {
@@ -27,154 +28,49 @@ export default function AudioPlayerScreen() {
 
   const bookId = id as string;
 
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
-  const [position, setPosition] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(false);
+  const {
+    currentIndex,
+    position,
+    duration,
+    isPlaying,
+    isBuffering,
+    playbackRate,
+    volume,
+    sleepTimer,
+    currentChapter,
+    play,
+    pause,
+    skip,
+    goToNextChapter,
+    goToPreviousChapter,
+    seekTo,
+    changeRate,
+    changeVolume,
+    setSleepTimerMinutes,
+    selectChapter,
+  } = useAudioPlayer(mockChapters, 0);
+
   const [showChapters, setShowChapters] = useState(false);
   const [showSleepTimer, setShowSleepTimer] = useState(false);
-  const [sleepTimer, setSleepTimer] = useState<number | null>(audioSettings.sleepTimer);
-  const [playbackRate, setPlaybackRate] = useState(audioSettings.playbackRate);
-  const [volume, setVolume] = useState(audioSettings.volume);
   const [showRateOptions, setShowRateOptions] = useState(false);
-
-  const positionInterval = useRef<NodeJS.Timeout>();
-  const sleepTimerTimeout = useRef<NodeJS.Timeout>();
-
-  const currentChapter = mockChapters[currentChapterIndex];
 
   useEffect(() => {
     setCurrentBook(bookId, 'audiobook');
-    loadChapter(currentChapterIndex);
-    return () => {
-      cleanup();
-    };
   }, [bookId]);
 
   useEffect(() => {
     if (sleepTimer) {
-      if (sleepTimerTimeout.current) clearTimeout(sleepTimerTimeout.current);
-      sleepTimerTimeout.current = setTimeout(() => {
-        pause();
-        setSleepTimer(null);
-        setAudioSettings({ sleepTimer: null });
-      }, sleepTimer * 60 * 1000);
+      setAudioSettings({ sleepTimer });
     }
-    return () => {
-      if (sleepTimerTimeout.current) clearTimeout(sleepTimerTimeout.current);
-    };
   }, [sleepTimer]);
 
-  const loadChapter = async (index: number) => {
-    if (index < 0 || index >= mockChapters.length) return;
-    
-    setIsBuffering(true);
-    cleanup();
-
-    try {
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: mockChapters[index].url },
-        { shouldPlay: true, rate: playbackRate, volume },
-        onPlaybackStatusUpdate
-      );
-      setSound(newSound);
-      setCurrentChapterIndex(index);
-      setDuration(newSound.getStatus().durationMillis || 0);
-      setIsPlaying(true);
-    } catch (error) {
-      console.error('Error loading chapter:', error);
-      Alert.alert('Error', 'Failed to load audio chapter');
-    } finally {
-      setIsBuffering(false);
-    }
-  };
-
-  const onPlaybackStatusUpdate = useCallback((status: Audio.AudioStatus) => {
-    if (status.isLoaded) {
-      setPosition(status.positionMillis);
-      setDuration(status.durationMillis);
-      setIsPlaying(status.isPlaying);
-      
-      if (status.didJustFinish && !status.isLooping) {
-        goToNextChapter();
-      }
-    }
-  }, []);
-
-  const cleanup = async () => {
-    if (positionInterval.current) clearInterval(positionInterval.current);
-    if (sleepTimerTimeout.current) clearTimeout(sleepTimerTimeout.current);
-    if (sound) {
-      await sound.unloadAsync();
-      setSound(null);
-    }
-  };
-
-  const play = async () => {
-    if (sound) {
-      await sound.playAsync();
-      setIsPlaying(true);
-    }
-  };
-
-  const pause = async () => {
-    if (sound) {
-      await sound.pauseAsync();
-      setIsPlaying(false);
-    }
-  };
-
-  const skip = async (seconds: number) => {
-    if (sound) {
-      const newPosition = Math.max(0, Math.min(duration, position + seconds * 1000));
-      await sound.setPositionAsync(newPosition);
-      setPosition(newPosition);
-    }
-  };
-
-  const goToNextChapter = () => {
-    if (currentChapterIndex < mockChapters.length - 1) {
-      loadChapter(currentChapterIndex + 1);
-    }
-  };
-
-  const goToPreviousChapter = () => {
-    if (currentChapterIndex > 0) {
-      loadChapter(currentChapterIndex - 1);
-    }
-  };
-
-  const seekTo = async (value: number) => {
-    if (sound) {
-      const newPosition = (value / 100) * duration;
-      await sound.setPositionAsync(newPosition);
-      setPosition(newPosition);
-    }
-  };
-
-  const handleRateChange = (rate: number) => {
-    setPlaybackRate(rate);
-    setAudioSettings({ playbackRate: rate });
-    if (sound) {
-      sound.setRateAsync(rate, false);
-    }
+  const handleRateChange = async (rate: number) => {
+    await changeRate(rate);
     setShowRateOptions(false);
   };
 
-  const handleVolumeChange = (value: number) => {
-    setVolume(value);
-    setAudioSettings({ volume: value });
-    if (sound) {
-      sound.setVolumeAsync(value);
-    }
-  };
-
   const handleSleepTimerSelect = (minutes: number | null) => {
-    setSleepTimer(minutes);
-    setAudioSettings({ sleepTimer: minutes });
-    setShowSleepTimer(false);
+    setSleepTimerMinutes(minutes);
   };
 
   const formatTime = (ms: number) => {
@@ -205,7 +101,7 @@ export default function AudioPlayerScreen() {
             {bookId}
           </Text>
           <Text variant="bodyMD" color="gray" style={{ textAlign: 'center' }}>
-            {currentChapter.title}
+            {currentChapter?.title || 'Loading...'}
           </Text>
         </Box>
 
@@ -284,7 +180,7 @@ export default function AudioPlayerScreen() {
           <Box flexDirection="row" gap={8}>
             <Button variant="ghost" size="sm" onPress={() => setShowRateOptions(true)}>
               <LucideIcon name="fast-forward" size={18} />
-              {playbackRate}x
+              {playbackRate.toFixed(2)}x
             </Button>
             <Button variant="ghost" size="sm" onPress={() => setShowSleepTimer(true)}>
               <LucideIcon name={sleepTimer ? 'moon' : 'clock'} size={18} />
@@ -306,7 +202,7 @@ export default function AudioPlayerScreen() {
           <Box flexDirection="row" alignItems="center" gap={16}>
             <LucideIcon name="volume-2" size={24} color="gray" />
             <View style={styles.volumeSlider}>
-              <View style={[styles.progressTrack, { height: 4 }]}>
+              <View style={styles.progressTrack}>
                 <View
                   style={[
                     styles.progressFill,
@@ -348,8 +244,8 @@ export default function AudioPlayerScreen() {
           visible={showChapters}
           onClose={() => setShowChapters(false)}
           chapters={mockChapters}
-          currentIndex={currentChapterIndex}
-          onSelect={(index) => loadChapter(index)}
+          currentIndex={currentIndex}
+          onSelect={selectChapter}
         />
       )}
     </View>
@@ -377,7 +273,7 @@ function RateOptionsModal({
           {rates.map((rate) => (
             <Button
               key={rate}
-              variant={currentRate === rate ? 'primary' : 'outline'}
+              variant={Math.abs(currentRate - rate) < 0.01 ? 'primary' : 'outline'}
               fullWidth
               onPress={() => onSelect(rate)}
             >

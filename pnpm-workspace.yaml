@@ -1,2 +1,7 @@
 allowBuilds:
+  core-js: true
+  es5-ext: true
+  esbuild: true
   unrs-resolver: false
+minimumReleaseAgeExclude:
+  - lucide-react-native@1.50.0
