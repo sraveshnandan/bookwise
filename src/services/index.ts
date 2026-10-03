@@ -5,3 +5,4 @@ export * from './audioService';
 export * from './notificationService';
 export * from './syncService';
 export * from './networkService';
+export * from './imageCacheService';
