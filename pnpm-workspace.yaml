@@ -1,5 +1,7 @@
 allowBuilds:
   core-js: true
+  detox: true
+  dtrace-provider: true
   es5-ext: true
   esbuild: true
   unrs-resolver: false
