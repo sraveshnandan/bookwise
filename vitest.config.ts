@@ -16,11 +16,12 @@ export default defineConfig({
         '**/*.config.{js,ts}',
         '**/*.test.{ts,tsx}',
         '**/*.spec.{ts,tsx}',
+        'src/utils/performance/**',
       ],
     },
-    deps: {
-      inline: ['@vitejs/plugin-react'],
-    },
+    pool: 'threads',
+    singleThread: true,
+    isolate: false,
   },
   resolve: {
     alias: {
