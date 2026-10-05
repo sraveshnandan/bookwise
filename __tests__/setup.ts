@@ -2,166 +2,166 @@ import '@testing-library/jest-native/extend-expect';
 import 'react-native-gesture-handler/jestSetup';
 
 // Mock react-native-reanimated
-jest.mock('react-native-reanimated', () => {
+vi.mock('react-native-reanimated', () => {
   const Reanimated = require('react-native-reanimated/mock');
   Reanimated.default.call = () => {};
   return Reanimated;
 });
 
 // Mock expo modules
-jest.mock('expo-constants', () => ({
+vi.mock('expo-constants', () => ({
   expoConfig: {
     extra: {},
   },
 }));
 
-jest.mock('expo-font', () => ({
-  loadAsync: jest.fn(),
+vi.mock('expo-font', () => ({
+  loadAsync: vi.fn(),
   isLoaded: true,
 }));
 
-jest.mock('expo-haptics', () => ({
-  impactLight: jest.fn(),
-  impactMedium: jest.fn(),
-  impactHeavy: jest.fn(),
+vi.mock('expo-haptics', () => ({
+  impactLight: vi.fn(),
+  impactMedium: vi.fn(),
+  impactHeavy: vi.fn(),
 }));
 
-jest.mock('expo-image', () => ({
+vi.mock('expo-image', () => ({
   Image: 'Image',
 }));
 
-jest.mock('expo-linear-gradient', () => ({
+vi.mock('expo-linear-gradient', () => ({
   LinearGradient: 'LinearGradient',
 }));
 
-jest.mock('expo-blur', () => ({
+vi.mock('expo-blur', () => ({
   BlurView: 'BlurView',
 }));
 
-jest.mock('expo-av', () => ({
+vi.mock('expo-av', () => ({
   Audio: {
     Sound: {
-      createAsync: jest.fn(),
+      createAsync: vi.fn(),
     },
     AudioStatus: {},
   },
 }));
 
-jest.mock('expo-file-system', () => ({
+vi.mock('expo-file-system', () => ({
   documentDirectory: '/mock/documents/',
   cacheDirectory: '/mock/cache/',
-  getInfoAsync: jest.fn(),
-  makeDirectoryAsync: jest.fn(),
-  readAsStringAsync: jest.fn(),
-  writeAsStringAsync: jest.fn(),
-  downloadAsync: jest.fn(),
-  deleteAsync: jest.fn(),
+  getInfoAsync: vi.fn(),
+  makeDirectoryAsync: vi.fn(),
+  readAsStringAsync: vi.fn(),
+  writeAsStringAsync: vi.fn(),
+  downloadAsync: vi.fn(),
+  deleteAsync: vi.fn(),
 }));
 
-jest.mock('expo-notifications', () => ({
-  setNotificationHandler: jest.fn(),
-  scheduleNotificationAsync: jest.fn(),
-  getPermissionsAsync: jest.fn(),
-  requestPermissionsAsync: jest.fn(),
-  getExpoPushTokenAsync: jest.fn(),
-  setNotificationChannelAsync: jest.fn(),
-  addNotificationReceivedListener: jest.fn(),
-  addNotificationResponseReceivedListener: jest.fn(),
+vi.mock('expo-notifications', () => ({
+  setNotificationHandler: vi.fn(),
+  scheduleNotificationAsync: vi.fn(),
+  getPermissionsAsync: vi.fn(),
+  requestPermissionsAsync: vi.fn(),
+  getExpoPushTokenAsync: vi.fn(),
+  setNotificationChannelAsync: vi.fn(),
+  addNotificationReceivedListener: vi.fn(),
+  addNotificationResponseReceivedListener: vi.fn(),
 }));
 
-jest.mock('expo-secure-store', () => ({
-  getItemAsync: jest.fn(),
-  setItemAsync: jest.fn(),
-  deleteItemAsync: jest.fn(),
+vi.mock('expo-secure-store', () => ({
+  getItemAsync: vi.fn(),
+  setItemAsync: vi.fn(),
+  deleteItemAsync: vi.fn(),
 }));
 
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
 }));
 
-jest.mock('@react-native-community/netinfo', () => ({
-  addEventListener: jest.fn(),
-  fetch: jest.fn(),
+vi.mock('@react-native-community/netinfo', () => ({
+  addEventListener: vi.fn(),
+  fetch: vi.fn(),
 }));
 
-jest.mock('@supabase/supabase-js', () => ({
-  createClient: jest.fn(() => ({
+vi.mock('@supabase/supabase-js', () => ({
+  createClient: vi.fn(() => ({
     auth: {
-      signUp: jest.fn(),
-      signInWithPassword: jest.fn(),
-      signInWithOAuth: jest.fn(),
-      signOut: jest.fn(),
-      resetPasswordForEmail: jest.fn(),
-      updateUser: jest.fn(),
-      getSession: jest.fn(),
-      getUser: jest.fn(),
-      onAuthStateChange: jest.fn(),
+      signUp: vi.fn(),
+      signInWithPassword: vi.fn(),
+      signInWithOAuth: vi.fn(),
+      signOut: vi.fn(),
+      resetPasswordForEmail: vi.fn(),
+      updateUser: vi.fn(),
+      getSession: vi.fn(),
+      getUser: vi.fn(),
+      onAuthStateChange: vi.fn(),
     },
-    from: jest.fn(() => ({
-      select: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      upsert: jest.fn().mockReturnThis(),
-      delete: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      single: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      insert: vi.fn().mockReturnThis(),
+      update: vi.fn().mockReturnThis(),
+      upsert: vi.fn().mockReturnThis(),
+      delete: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
     })),
     storage: {
-      from: jest.fn(() => ({
-        upload: jest.fn(),
-        download: jest.fn(),
-        getPublicUrl: jest.fn(),
-        createSignedUrl: jest.fn(),
-        remove: jest.fn(),
-        list: jest.fn(),
+      from: vi.fn(() => ({
+        upload: vi.fn(),
+        download: vi.fn(),
+        getPublicUrl: vi.fn(),
+        createSignedUrl: vi.fn(),
+        remove: vi.fn(),
+        list: vi.fn(),
       })),
     },
-    channel: jest.fn(() => ({
-      on: jest.fn().mockReturnThis(),
-      subscribe: jest.fn(),
+    channel: vi.fn(() => ({
+      on: vi.fn().mockReturnThis(),
+      subscribe: vi.fn(),
     })),
-    removeChannel: jest.fn(),
+    removeChannel: vi.fn(),
   })),
 }));
 
-jest.mock('react-native-purchases', () => ({
-  configure: jest.fn(),
-  getOfferings: jest.fn(),
-  getCustomerInfo: jest.fn(),
-  purchasePackage: jest.fn(),
-  restorePurchases: jest.fn(),
-  logIn: jest.fn(),
-  logOut: jest.fn(),
-  setEmail: jest.fn(),
-  setAttributes: jest.fn(),
+vi.mock('react-native-purchases', () => ({
+  configure: vi.fn(),
+  getOfferings: vi.fn(),
+  getCustomerInfo: vi.fn(),
+  purchasePackage: vi.fn(),
+  restorePurchases: vi.fn(),
+  logIn: vi.fn(),
+  logOut: vi.fn(),
+  setEmail: vi.fn(),
+  setAttributes: vi.fn(),
   LOG_LEVEL: { DEBUG: 'DEBUG' },
 }));
 
-jest.mock('react-native-track-player', () => ({
-  setupPlayer: jest.fn(),
-  updateOptions: jest.fn(),
-  add: jest.fn(),
-  play: jest.fn(),
-  pause: jest.fn(),
-  stop: jest.fn(),
-  seekTo: jest.fn(),
-  skipNext: jest.fn(),
-  skipPrevious: jest.fn(),
-  setRate: jest.fn(),
-  setVolume: jest.fn(),
-  getCurrentTrack: jest.fn(),
-  getProgress: jest.fn(),
-  getState: jest.fn(),
-  getQueue: jest.fn(),
-  removeUpcomingTracks: jest.fn(),
-  updateMetadataForTrack: jest.fn(),
-  destroy: jest.fn(),
-  addEventListener: jest.fn(),
-  removeEventListener: jest.fn(),
+vi.mock('react-native-track-player', () => ({
+  setupPlayer: vi.fn(),
+  updateOptions: vi.fn(),
+  add: vi.fn(),
+  play: vi.fn(),
+  pause: vi.fn(),
+  stop: vi.fn(),
+  seekTo: vi.fn(),
+  skipNext: vi.fn(),
+  skipPrevious: vi.fn(),
+  setRate: vi.fn(),
+  setVolume: vi.fn(),
+  getCurrentTrack: vi.fn(),
+  getProgress: vi.fn(),
+  getState: vi.fn(),
+  getQueue: vi.fn(),
+  removeUpcomingTracks: vi.fn(),
+  updateMetadataForTrack: vi.fn(),
+  destroy: vi.fn(),
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
   Event: {
     PlaybackState: 'playback-state',
     PlaybackError: 'playback-error',
@@ -193,20 +193,20 @@ jest.mock('react-native-track-player', () => ({
   },
 }));
 
-jest.mock('react-native-pdf', () => ({
-  Document: jest.fn(),
+vi.mock('react-native-pdf', () => ({
+  Document: vi.fn(),
 }));
 
-jest.mock('react-native-webview', () => ({
+vi.mock('react-native-webview', () => ({
   WebView: 'WebView',
 }));
 
-jest.mock('react-native-gesture-handler', () => ({
+vi.mock('react-native-gesture-handler', () => ({
   PanGestureHandler: 'PanGestureHandler',
   GestureHandlerRootView: 'GestureHandlerRootView',
 }));
 
-jest.mock('lucide-react-native', () => {
+vi.mock('lucide-react-native', () => {
   const icons = {};
   const createIcon = (name: string) => ({ name, $$typeof: Symbol.for('react.element') });
   return new Proxy({}, {
@@ -220,24 +220,24 @@ jest.mock('lucide-react-native', () => {
 });
 
 // Mock react-native-redash
-jest.mock('react-native-redash', () => ({
-  interpolate: jest.fn(),
-  clamp: jest.fn(),
+vi.mock('react-native-redash', () => ({
+  interpolate: vi.fn(),
+  clamp: vi.fn(),
 }));
 
 // Mock expo-linking
-jest.mock('expo-linking', () => ({
-  createURL: jest.fn(),
-  parse: jest.fn(),
-  openURL: jest.fn(),
+vi.mock('expo-linking', () => ({
+  createURL: vi.fn(),
+  parse: vi.fn(),
+  openURL: vi.fn(),
 }));
 
 // Mock expo-router
-jest.mock('expo-router', () => ({
+vi.mock('expo-router', () => ({
   useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
-    back: jest.fn(),
+    push: vi.fn(),
+    replace: vi.fn(),
+    back: vi.fn(),
   }),
   useLocalSearchParams: () => ({}),
   Link: ({ children }: any) => children,
@@ -246,15 +246,15 @@ jest.mock('expo-router', () => ({
 }));
 
 // Mock @shopify/flash-list
-jest.mock('@shopify/flash-list', () => ({
+vi.mock('@shopify/flash-list', () => ({
   FlashList: 'FlashList',
 }));
 
 // Global test utilities
 global.performance = global.performance || {
   now: () => Date.now(),
-  mark: jest.fn(),
-  measure: jest.fn(),
+  mark: vi.fn(),
+  measure: vi.fn(),
 };
 
 // Console suppressions for tests
@@ -291,5 +291,5 @@ afterAll(() => {
 
 // Cleanup after each test
 afterEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
