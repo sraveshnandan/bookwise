@@ -16,7 +16,13 @@
     "test:e2e": "detox test -c ios.sim.debug",
     "format": "prettier --write .",
     "prepare": "husky install",
-    "analyze": "expo bundle --platform ios --dev false --output /tmp/bundle.js && npx react-native-bundle-visualizer /tmp/bundle.js"
+    "analyze": "expo bundle --platform ios --dev false --output /tmp/bundle.js && npx react-native-bundle-visualizer /tmp/bundle.js",
+    "bundle:ios": "expo bundle --platform ios --dev false --output /tmp/bundle.js",
+    "bundle:android": "expo bundle --platform android --dev false --output /tmp/bundle.android.js",
+    "perf:profile": "expo start --profile",
+    "generate:icons": "node scripts/generate-icons.js",
+    "generate:screenshots": "node scripts/generate-screenshots.js",
+    "prepare:release": "node scripts/prepare-release.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
